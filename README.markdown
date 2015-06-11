@@ -14,7 +14,7 @@ SoundCleod is a weird name. [How to pronounce it?](https://soundcloud.com/senart
 
 ## How to get it?
 
-Current version is 0.17 (December 19, 2014) [see changes](https://github.com/salomvary/soundcleod/blob/master/CHANGELOG.md)
+Current version is 0.18 (May 15, 2015) [see changes](https://github.com/salomvary/soundcleod/blob/master/CHANGELOG.md)
 
 - [Download from
 	here](https://github.com/salomvary/soundcleod/blob/master/dist/SoundCleod.dmg?raw=true)
@@ -41,6 +41,7 @@ Note: the homebrew method is supported by the [Caskroom team](https://github.com
 To play SoundCloud:
 - Any modern web browser
 - [BeardedSpice](http://beardedspice.com/) (Mac)
+- [Soundnode App](http://www.soundnodeapp.com/) (Mac, Win)
 
 ## Forks Using SoundCleod "Engine"
 To play other stuff:

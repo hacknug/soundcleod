@@ -24,14 +24,9 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
 @property BOOL applicationHasFinishedLaunching;
 @property (nonatomic, strong) NSURL *appLaunchURL;
 
-@property (nonatomic, strong) NSWindow *tmpHostWindow;
-@property (nonatomic, strong) id contentView;
-
 @end
 
 @implementation AppDelegate
-
-@synthesize flashCheckController;
 
 + (void)initialize;
 {
@@ -106,13 +101,16 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
         self.baseURL = [NSURL URLWithString: [@"https://" stringByAppendingString:SCHost]];
     }
 
+    // Fake UserAgent to real Safari so that brower sniffing does not break (needed for Flash-free playback)
+    [_webView setCustomUserAgent: @"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit/600.6.3 (KHTML, like Gecko) Version/7.1.6 Safari/537.85.15"];
+
     NSURL *urlToLoad = _appLaunchURL ? _appLaunchURL : _baseURL;
     [[_webView mainFrame] loadRequest:[NSURLRequest requestWithURL:urlToLoad]];
     
     WebPreferences *prefs = [WebPreferences standardPreferences];
     
     [prefs setCacheModel:WebCacheModelPrimaryWebBrowser];
-    [prefs setPlugInsEnabled:YES]; // Flash is required for playing sounds in certain cases
+    [prefs setPlugInsEnabled:FALSE]; // Prevent loading outdated and disabled Flash plugin (and everything else too:)
     
     [prefs _setLocalStorageDatabasePath:@"~/Library/Application Support/SoundCleod"];
     [prefs setLocalStorageEnabled:YES];
@@ -129,8 +127,6 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
 
     [_window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
     _applicationHasFinishedLaunching = YES;
-    
-    [flashCheckController check];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
@@ -153,7 +149,6 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
 
 - (void)awakeFromNib
 {
-    [_window setDelegate:self];
     [_webView setUIDelegate:self];
     [_webView setFrameLoadDelegate:self];
     [_webView setPolicyDelegate:self];
@@ -172,42 +167,12 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
     }
 
     [_urlPromptController setNavigateDelegate:self];
-    
-    // stored for adding back later, see windowWillClose
-    self.contentView = [_window contentView];
 }
 
 - (void)webView:(WebView *)sender didFinishLoadForFrame:(WebFrame *)frame {
     NSScrollView *mainScrollView = [[[[sender mainFrame] frameView] documentView] enclosingScrollView];
     [mainScrollView setVerticalScrollElasticity:NSScrollElasticityNone];
     [mainScrollView setHorizontalScrollElasticity:NSScrollElasticityNone];
-}
-
-- (void)windowDidBecomeKey:(NSNotification *)notification
-{
-    // restore "hidden" webview, see windowShouldClose
-    // (would be better to do it in applicationShouldHandleReopen
-    // but that seems to be too early (has no effect)
-    if ([_window contentView] != _contentView) {
-        [_window setContentView:_contentView];
-        [_webView setHostWindow:nil];
-        self.tmpHostWindow = nil;
-    }
-}
-
-- (BOOL)windowShouldClose:(NSNotification *)notification
-{
-    // set temporary hostWindow on WebView and remove it from
-    // the closed window to prevent stopping flash plugin
-    // (windowWillClose would be better but that doesn't always work)
-    // http://stackoverflow.com/questions/5307423/plugin-objects-in-webview-getting-destroyed
-    // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/WebKit/Classes/WebView_Class/Reference/Reference.html#//apple_ref/occ/instm/WebView/setHostWindow%3a
-    self.tmpHostWindow = [[NSWindow alloc] init];
-    [_webView setHostWindow:_tmpHostWindow];
-    [_window setContentView:nil];
-    [_contentView removeFromSuperview];
-    
-    return TRUE;
 }
 
 - (WebView *)webView:(WebView *)sender createWebViewWithRequest:(NSURLRequest *)request
@@ -342,6 +307,33 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
 	}
 }
 
+- (NSMenu *)applicationDockMenu:(NSApplication *)sender {
+    
+    NSMenu *dockMenu = [[NSMenu alloc] init];
+    
+    NSMenuItem *pausePlayItem = [[NSMenuItem alloc] init];
+    pausePlayItem.target = self;
+    pausePlayItem.action = @selector(playPause);
+    pausePlayItem.title = [self isPlaying] ? NSLocalizedString(@"Pause", @"") : NSLocalizedString(@"Play", @"");
+    [dockMenu addItem:pausePlayItem];
+    
+    [dockMenu addItem:[NSMenuItem separatorItem]];
+    
+    NSMenuItem *nextItem = [[NSMenuItem alloc] init];
+    nextItem.target = self;
+    nextItem.action = @selector(next);
+    nextItem.title = NSLocalizedString(@"Next", @"");
+    [dockMenu addItem:nextItem];
+    
+    NSMenuItem *previousItem = [[NSMenuItem alloc] init];
+    previousItem.target = self;
+    previousItem.action = @selector(prev);
+    previousItem.title = NSLocalizedString(@"Previous", @"");
+    [dockMenu addItem:previousItem];
+    
+    return dockMenu;
+}
+
 
 - (IBAction)showHelp:(id)sender
 {
@@ -356,6 +348,26 @@ NSString *const SCNavigateJS = @"history.replaceState(null, null, '%@');e=new Ev
 - (IBAction)reload:(id)sender
 {
     [_webView reload:self];
+}
+
+- (IBAction)next:(id)sender
+{
+    [self next];
+}
+
+- (IBAction)prev:(id)sender
+{
+    [self prev];
+}
+
+- (IBAction)playPause:(id)sender
+{
+    [self playPause];
+}
+
+- (IBAction)home:(id)sender
+{
+    [self navigate:@"/"];
 }
 
 - (void)next
